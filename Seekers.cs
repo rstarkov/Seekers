@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 namespace Seekers;
 
@@ -11,7 +11,6 @@ public record SeekerState<TVector, TEval>
 public record SeekerConfig<TVector, TEval>
 {
     public SeekerGoal Goal { get; set; } = SeekerGoal.Maximize;
-    public ParameterConfig[] Parameters { get; set; }
     public Func<double[], TVector> MakeVector { get; set; }
     public Func<TVector, TEval> Evaluate { get; set; }
     public Func<TEval, TEval, int> Compare { get; set; }
@@ -20,42 +19,50 @@ public record SeekerConfig<TVector, TEval>
 
 public enum SeekerGoal { Minimize = 1, Maximize }
 
-public abstract class ParameterConfig
-{
-    public ParameterType Type { get; protected set; }
-    public double Min { get; protected set; }
-    public double Max { get; protected set; }
-}
+public class SeekerBreakException : Exception { }
 
-public enum ParameterType { Additive = 1, Multiplicative, Logarithmic, }
-
-public class IntParameter : ParameterConfig
+public static class Seeker
 {
-    public IntParameter(int minInclusive, int maxInclusive, ParameterType type)
+    public static Fluent.SeekerBuilderWithVector<TVector> WithVector<TVector>(Func<VectorContext, TVector> makeVector)
     {
-        Min = minInclusive;
-        Max = maxInclusive;
-        Type = type;
+        throw new NotImplementedException();
+    }
+    public static SeekerConfig<TVector, TEval> CreateConfig<TVector, TEval>(Func<VectorContext, TVector> makeVector, Func<TEval> dummyEval)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static SeekerState<TVector, TEval> FullyRandomVectors<TVector, TEval>(this SeekerConfig<TVector, TEval> config, int iterations)
+    {
+        throw new NotImplementedException();
     }
 }
 
-public class DblParameter : ParameterConfig
+public class VectorContext
 {
-    public DblParameter(double min, double max, ParameterType type)
-    {
-        Min = min;
-        Max = max;
-        Type = type;
-    }
 }
 
-public class SeekerWorstResultException : Exception { }
-
-public class Seeker
+public static class VectorContextExtensions
 {
-    public static SeekerConfig<TVector, TEval> CreateConfig<TVector, TEval>(Func<double[], TVector> makeVector, Func<TEval> dummyEval)
+    public static int LinearInt(this VectorContext ctx, int minInclusive, int maxInclusive)
     {
-        return new SeekerConfig<TVector, TEval> { MakeVector = makeVector };
+        throw new NotImplementedException();
+    }
+    public static int LogarithmicInt(this VectorContext ctx, int minInclusive, int maxInclusive)
+    {
+        throw new NotImplementedException();
+    }
+    public static double LinearDbl(this VectorContext ctx, double min, double max)
+    {
+        throw new NotImplementedException();
+    }
+    public static double RatioDbl(this VectorContext ctx, double min, double max)
+    {
+        throw new NotImplementedException();
+    }
+    public static double LogarithmicDbl(this VectorContext ctx, double min, double max)
+    {
+        throw new NotImplementedException();
     }
 }
 
