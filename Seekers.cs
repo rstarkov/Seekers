@@ -2,19 +2,33 @@
 
 namespace Seekers;
 
-public record SeekerState<TVector, TEval>
+public record SeekerResult<TVector, TEval>
 {
-    public TVector BestVector { get; set; }
-    public TEval BestEval { get; set; }
+    public TVector BestVector { get; init; }
+    public TEval BestEval { get; init; }
 }
 
 public record SeekerConfig<TVector, TEval>
 {
     public SeekerGoal Goal { get; set; } = SeekerGoal.Maximize;
-    public Func<double[], TVector> MakeVector { get; set; }
+    public Func<VectorContext, TVector> MakeVector { get; set; }
     public Func<TVector, TEval> Evaluate { get; set; }
     public Func<TEval, TEval, int> Compare { get; set; }
-    public IComparer<TEval> Comparer { get; set; } = Comparer<TEval>.Default;
+    public IComparer<TEval> Comparer { get; set; }
+
+    public int CompareUsingGoal(TEval a, TEval b)
+    {
+        int result;
+        if (Compare != null)
+            result = Compare(a, b);
+        else if (Comparer != null)
+            result = Comparer.Compare(a, b);
+        else
+            result = Comparer<TEval>.Default.Compare(a, b);
+        if (Goal == SeekerGoal.Minimize)
+            result = -result;
+        return result;
+    }
 }
 
 public enum SeekerGoal { Minimize = 1, Maximize }
@@ -23,6 +37,11 @@ public class SeekerBreakException : Exception { }
 
 public static class Seeker
 {
+    public static Random DefaultRnd { get; set; } = new Random();
+
+    public static SeekerResult<TVector, TEval> CreateResult<TVector, TEval>(TVector vector, TEval eval)
+        => new SeekerResult<TVector, TEval> { BestVector = vector, BestEval = eval };
+
     public static Fluent.SeekerBuilderWithVector<TVector> WithVector<TVector>(Func<VectorContext, TVector> makeVector)
     {
         throw new NotImplementedException();
@@ -32,14 +51,31 @@ public static class Seeker
         throw new NotImplementedException();
     }
 
-    public static SeekerState<TVector, TEval> FullyRandomVectors<TVector, TEval>(this SeekerConfig<TVector, TEval> config, int iterations)
+    public static SeekerResult<TVector, TEval> FullyRandomVectors<TVector, TEval>(this SeekerConfig<TVector, TEval> config, int iterations)
     {
         throw new NotImplementedException();
     }
 }
 
+public abstract class VectorParam
+{
+    public abstract void Randomize(Random rnd);
+    public abstract bool Move(double amount);
+}
+
 public class VectorContext
 {
+    public bool IsConfiguring { get; private set; }
+
+    public VectorParam[] Parameters { get; private set; }
+
+    public void Configure<TVector>(Func<VectorContext, TVector> makeVector)
+    {
+        IsConfiguring = true;
+        makeVector(this);
+        IsConfiguring = false;
+        throw new NotImplementedException();
+    }
 }
 
 public static class VectorContextExtensions
@@ -63,6 +99,33 @@ public static class VectorContextExtensions
     public static double LogarithmicDbl(this VectorContext ctx, double min, double max)
     {
         throw new NotImplementedException();
+    }
+}
+
+public abstract class SeekerBase<TVector, TEVal>
+{
+    public SeekerResult<TVector, TEVal> Result { get; protected set; }
+}
+
+public class RandomPointsSeeker<TVector, TEVal> : SeekerBase<TVector, TEVal>
+{
+    private SeekerConfig<TVector, TEVal> _config;
+    private int _iterations;
+    private Random _random = Seeker.DefaultRnd;
+
+    private void search()
+    {
+        var vc = new VectorContext();
+        vc.Configure(_config.MakeVector);
+        for (int i = 0; i < _iterations; i++)
+        {
+            foreach (var p in vc.Parameters)
+                p.Randomize(_random);
+            var vector = _config.MakeVector(vc);
+            var eval = _config.Evaluate(vector);
+            if (_config.CompareUsingGoal(eval, Result.BestEval) > 0) // eval is greater (better) than BestEval
+                Result = Seeker.CreateResult(vector, eval);
+        }
     }
 }
 
