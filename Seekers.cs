@@ -299,8 +299,13 @@ public class RomanOptim
             return v.ToString("e5");
     }
 
-    public void OrthogonalTraverseThreaded(double bestEval, double[] bestVector, int threads, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001)
+    public void OrthogonalTraverseThreaded(double? bestEval, double[] bestVector, int threads, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001)
     {
+        if (bestEval == null)
+        {
+            bestEval = Evaluate(bestVector);
+            Log($"INITIAL EVAL: eval={parstr(bestEval.Value)}, vector={string.Join(", ", bestVector.Select(v => parstr(v)))}");
+        }
         var directions = new BlockingCollection<double[]>(1);
         var producer = new Thread(() =>
         {
@@ -313,14 +318,14 @@ public class RomanOptim
         {
             foreach (var dir in directions.GetConsumingEnumerable())
             {
-                var eval = bestEval;
+                var eval = bestEval.Value;
                 var vector = bestVector.ToArray();
                 Log($"STARTING: eval={parstr(eval)}, vector={string.Join(", ", vector.Select(v => parstr(v)))}");
                 TraverseDirection(dir, ref eval, ref vector, Rnd.NextDouble(initialStep, 50 * initialStep), stepGrowShrink, giveupBadDirStep, giveupGoodDirStep, (newEval, newVector) =>
                   {
                       lock ("quickhack-lock")
                       {
-                          if (improved(newEval, bestEval))
+                          if (improved(newEval, bestEval.Value))
                           {
                               bestVector = newVector.ToArray();
                               bestEval = newEval;
