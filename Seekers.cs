@@ -150,16 +150,31 @@ public static class VectorContextExtensions
     }
 }
 
+#if false
 public abstract class SeekerBase<TVector, TEVal>
 {
+    private SeekerConfig<TVector, TEVal> _config;
+    private Random _random = Seeker.DefaultRnd;
+
     public SeekerResult<TVector, TEVal> Result { get; protected set; }
+    protected void EvaluateOnce()
+    {
+        var vector = vc.MakeVector(_config.MakeVector);
+        var eval = _config.Evaluate(vector);
+        if (_config.CompareUsingGoal(eval, Result.BestEval) > 0) // eval is greater (better) than BestEval
+            Result = Seeker.CreateResult(vector, eval);
+    }
 }
 
 public class RandomPointsSeeker<TVector, TEVal> : SeekerBase<TVector, TEVal>
 {
-    private SeekerConfig<TVector, TEVal> _config;
     private int _iterations;
-    private Random _random = Seeker.DefaultRnd;
+
+    public RandomPointsSeeker(SeekerConfig<TVector, TEVal> config, int iterations)
+    {
+        _config = config;
+        _iterations = iterations;
+    }
 
     private void search()
     {
@@ -169,13 +184,11 @@ public class RandomPointsSeeker<TVector, TEVal> : SeekerBase<TVector, TEVal>
         {
             foreach (var p in vc.Parameters)
                 p.Randomize(_random);
-            var vector = _config.MakeVector(vc);
-            var eval = _config.Evaluate(vector);
-            if (_config.CompareUsingGoal(eval, Result.BestEval) > 0) // eval is greater (better) than BestEval
-                Result = Seeker.CreateResult(vector, eval);
+            EvaluateOnce();
         }
     }
 }
+#endif
 
 public class RomanOptim
 {
