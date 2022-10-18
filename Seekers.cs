@@ -211,7 +211,7 @@ public class RomanOptim
             OrthogonalTraverse(ref eval, ref vector);
             Log($"Random vector after ortho: eval={eval:#,0.#####} ===");
             //PerDimensionTraverse(ref eval, ref vector);
-            Log($"Random vector after per-dim: eval={eval:#,0.#####} ===");
+            //Log($"Random vector after per-dim: eval={eval:#,0.#####} ===");
             if (eval > bestEval)
             {
                 bestEval = eval;
@@ -222,7 +222,7 @@ public class RomanOptim
         OrthogonalTraverse(ref bestEval, ref bestVector);
         Log($"Best vector after ortho: eval={bestEval:#,0.#####} ===");
         //PerDimensionTraverse(ref bestEval, ref bestVector);
-        Log($"Best vector after per-dim: eval={bestEval:#,0.#####} ===");
+        //Log($"Best vector after per-dim: eval={bestEval:#,0.#####} ===");
     }
 
     public void OptimiseThreaded(double bestEval, double[] bestVector, int threadCount)
@@ -281,6 +281,24 @@ public class RomanOptim
         return anyImprovements;
     }
 
+    public static string parstr(double v)
+    {
+        if (v > 1)
+            return v.ToString("0.#####");
+        else if (v > 0.1)
+            return v.ToString("0.#####");
+        else if (v > 0.01)
+            return v.ToString("0.######");
+        else if (v > 0.001)
+            return v.ToString("0.#######");
+        else if (v > 0.0001)
+            return v.ToString("0.########");
+        else if (v > 0.00001)
+            return v.ToString("0.#########");
+        else
+            return v.ToString("e5");
+    }
+
     public void OrthogonalTraverseThreaded(double bestEval, double[] bestVector, int threads, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001)
     {
         var directions = new BlockingCollection<double[]>(1);
@@ -297,7 +315,7 @@ public class RomanOptim
             {
                 var eval = bestEval;
                 var vector = bestVector.ToArray();
-                Log($"STARTING: eval={eval:#,0.#####}, vector={string.Join(", ", vector.Select(v => $"{v:#,0.#####}"))}");
+                Log($"STARTING: eval={parstr(eval)}, vector={string.Join(", ", vector.Select(v => parstr(v)))}");
                 TraverseDirection(dir, ref eval, ref vector, Rnd.NextDouble(initialStep, 50 * initialStep), stepGrowShrink, giveupBadDirStep, giveupGoodDirStep, (newEval, newVector) =>
                   {
                       lock ("quickhack-lock")
@@ -306,7 +324,7 @@ public class RomanOptim
                           {
                               bestVector = newVector.ToArray();
                               bestEval = newEval;
-                              Log($"IMPROVEMENT COMMITTED: eval={bestEval:#,0.#####}");
+                              Log($"IMPROVEMENT COMMITTED: eval={parstr(bestEval.Value)}");
                           }
                       }
                   });
