@@ -196,6 +196,7 @@ public class RomanOptim
 
     public Action<string> Log = s => { };
     public Func<double[], double[]> GenerateRandomVector = null;
+    public Action<double[]> RenormalizeVector = null;
     public Func<double[], double> Evaluate = null;
 
     public void OptimizeOnce(ref double bestEval, ref double[] bestVector)
@@ -253,11 +254,12 @@ public class RomanOptim
             t.Join();
     }
 
-    private static void moveVector(double[] vector, double[] direction, double step)
+    private void moveVector(double[] vector, double[] direction, double step)
     {
         static double mul(double size) => size > 0 ? 1 + size : size < 0 ? 1 / (1 - size) : 1;
         for (int i = 0; i < vector.Length; i++)
             vector[i] *= mul(direction[i] * step); // (dir[i]*step) = 1 means "double"; -1 means "halve"; 0 means no change
+        RenormalizeVector?.Invoke(vector);
     }
 
     private static void negateDir(double[] vector)
