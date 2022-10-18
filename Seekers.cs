@@ -299,21 +299,16 @@ public class RomanOptim
             return v.ToString("e5");
     }
 
-    public void OrthogonalTraverseThreaded(double? bestEval, double[] bestVector, int threads, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001)
+    public Func<(double bestEval, double[] best)> OrthogonalTraverseThreaded(double? bestEval, double[] bestVector, int threads, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001)
     {
+        var cts = new CancellationTokenSource();
+        var evt = new ManualResetEvent(false);
         if (bestEval == null)
         {
             bestEval = Evaluate(bestVector);
             Log($"INITIAL EVAL: eval={parstr(bestEval.Value)}, vector={string.Join(", ", bestVector.Select(v => parstr(v)))}");
         }
         var directions = new BlockingCollection<double[]>(1);
-        var producer = new Thread(() =>
-        {
-            while (true)
-                foreach (var dir in CreateRandomOrthogonalMatrix(bestVector.Length))
-                    directions.Add(dir);
-        });
-        producer.Start();
         var consumers = Enumerable.Range(0, threads).Select(_ => new Thread(() =>
         {
             foreach (var dir in directions.GetConsumingEnumerable())
@@ -335,12 +330,28 @@ public class RomanOptim
                   });
             }
         })).ToList();
+        var producer = new Thread(() =>
+        {
+            while (!cts.IsCancellationRequested)
+                foreach (var dir in CreateRandomOrthogonalMatrix(bestVector.Length))
+                {
+                    if (cts.IsCancellationRequested)
+                        break;
+                    directions.Add(dir);
+                }
+            directions.CompleteAdding();
+            foreach (var t in consumers)
+                t.Join();
+            evt.Set();
+        });
+        producer.Start();
         foreach (var t in consumers)
         {
             t.Priority = ThreadPriority.Lowest;
             t.Start();
         }
-        producer.Join(); // infinite wait
+        //producer.Join(); // infinite wait, comment out as necessary (TODO)
+        return () => { cts.Cancel(); evt.WaitOne(); return (bestEval.Value, bestVector); };
     }
 
     public void OrthogonalTraverseBreadthFirstThreaded(double bestEval, double[] bestVector, int threads, int broadIters, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupStep = 0.001)
