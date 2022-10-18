@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 namespace Seekers;
 
@@ -59,30 +59,78 @@ public static class Seeker
 
 public abstract class VectorParam
 {
+    public double Value { get; protected set; }
     public abstract void Randomize(Random rnd);
     public abstract bool Move(double amount);
 }
 
 public class VectorContext
 {
-    public bool IsConfiguring { get; private set; }
+    private int _index = 0;
+    private List<VectorParam> _parameters = new();
 
-    public VectorParam[] Parameters { get; private set; }
+    public bool IsConfiguring { get; private set; }
+    public IList<VectorParam> Parameters => _parameters.AsReadOnly();
 
     public void Configure<TVector>(Func<VectorContext, TVector> makeVector)
     {
         IsConfiguring = true;
+        _index = 0;
         makeVector(this);
         IsConfiguring = false;
-        throw new NotImplementedException();
+    }
+
+    public void ConfigureParameter(VectorParam param)
+    {
+        _index++;
+        if (_parameters.Count < _index)
+            _parameters.Add(null);
+        _parameters[_index - 1] = param;
+    }
+
+    public double GetParameterValue()
+    {
+        _index++;
+        return _parameters[_index - 1].Value;
+    }
+
+    public TVector MakeVector<TVector>(Func<VectorContext, TVector> makeVector)
+    {
+        _index = 0;
+        return makeVector(this);
     }
 }
 
 public static class VectorContextExtensions
 {
+    public class LinearIntParam : VectorParam
+    {
+        public int MinInclusive { get; set; }
+        public int MaxInclusive { get; set; }
+
+        public override bool Move(double amount)
+        {
+            var prev = Value;
+            Value += amount;
+            if (Value < MinInclusive - 0.49)
+                Value = MinInclusive - 0.49;
+            else if (Value > MaxInclusive + 0.49)
+                Value = MaxInclusive + 0.49;
+            return prev != Value;
+        }
+
+        public override void Randomize(Random rnd)
+        {
+            Value = rnd.Next(MinInclusive, MaxInclusive + 1);
+        }
+    }
+
     public static int LinearInt(this VectorContext ctx, int minInclusive, int maxInclusive)
     {
-        throw new NotImplementedException();
+        if (!ctx.IsConfiguring)
+            return (int)Math.Round(ctx.GetParameterValue());
+        ctx.ConfigureParameter(new LinearIntParam { MinInclusive = minInclusive, MaxInclusive = maxInclusive });
+        return 0;
     }
     public static int LogarithmicInt(this VectorContext ctx, int minInclusive, int maxInclusive)
     {
