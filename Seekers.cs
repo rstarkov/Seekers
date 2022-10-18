@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 namespace Seekers;
 
@@ -193,6 +193,7 @@ public class RandomPointsSeeker<TVector, TEVal> : SeekerBase<TVector, TEVal>
 public class RomanOptim
 {
     public int ItersRandomGuess = 10;
+    public bool CanGrowIfEqual = false;
 
     public Action<string> Log = s => { };
     public Func<double[], double[]> GenerateRandomVector = null;
@@ -457,11 +458,12 @@ public class RomanOptim
 
     public bool TraverseDirection(double[] dir, ref double bestEval, ref double[] bestVector, double initialStep = 0.01, double stepGrowShrink = 1.62, double giveupBadDirStep = 0.001, double giveupGoodDirStep = 0.001, Action<double, double[]> onImproved = null)
     {
+        var maxStep = initialStep * 100000;
         // Phase 1: evaluate this direction and pick forward or backward sense
         /////////////////Log($"  ortho dir phase 1 start: eval={bestEval:#,0.#####}");
         double step = initialStep;
         double[] vector;
-        var canGrowIfEqual = true;
+        var canGrowIfEqual = CanGrowIfEqual;
         while (true)
         {
             // Try forward
@@ -475,6 +477,8 @@ public class RomanOptim
                 bestEval = eval1;
                 onImproved?.Invoke(bestEval, bestVector);
                 step *= stepGrowShrink;
+                if (step > maxStep)
+                    break;
                 break;
             }
             // Try backward
@@ -518,9 +522,10 @@ public class RomanOptim
 
     public bool TraverseDirectionForward(double[] dir, ref double bestEval, ref double[] bestVector, double step = 0.01, double stepGrowShrink = 1.62, double giveupStep = 0.001, Action<double, double[]> onImproved = null)
     {
+        var maxStep = step * 100000;
         var vector = bestVector.ToArray();
         Log($"  traverse forward start: eval={bestEval:#,0.#####}");
-        bool growOnEqual = true;
+        bool growOnEqual = CanGrowIfEqual;
         while (step >= giveupStep)
         {
             moveVector(vector, dir, step);
@@ -532,6 +537,8 @@ public class RomanOptim
                 bestEval = eval;
                 onImproved?.Invoke(bestEval, bestVector);
                 step *= stepGrowShrink;
+                if (step > maxStep)
+                    break;
                 growOnEqual = true;
             }
             else if (eval != bestEval) // so it's worse
@@ -540,9 +547,15 @@ public class RomanOptim
                 step /= stepGrowShrink;
                 growOnEqual = false; // to prevent loops
             }
-            else if (growOnEqual) // equal
+            else if (growOnEqual) // equal, and we're allowed to keep going
             {
+                if (step > maxStep)
+                    break;
                 step *= stepGrowShrink;
+            }
+            else // equal, and we're not allowed to keep going
+            {
+                break;
             }
         }
 
