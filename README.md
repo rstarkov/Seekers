@@ -1,5 +1,8 @@
 # Seekers
 
+See also: [EXAMPLES.md](EXAMPLES.md) — a cookbook covering the odd scenarios (nested searches, plateaus,
+constraints, custom loops, huge/tiny evaluations); [FUTURE.md](FUTURE.md) — possible future improvements.
+
 A .NET library of utilities for multi-parameter optimization. It targets a broad range of problems with very
 different performance characteristics — from evaluations costing a microsecond (where per-eval library overhead
 matters) to evaluations costing half an hour of compute (where every single evaluation must count).
