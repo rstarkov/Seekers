@@ -179,11 +179,12 @@ public class Seeker<TVector, TEval>
             GlobalBestEval = eval;
             GlobalBestVector = BestVector;
             _globalRaws = _bestRaws;
-            Log.Improvement($"IMPROVED: eval={eval}, values={SeekerLog.Vec(GetValues())}");
+            if (Log.WantImprovements)
+                Log.Improvement($"IMPROVED: eval={eval}, values={SeekerLog.Vec(GetValues())}");
             Config.OnImproved?.Invoke(eval, BestVector);
             Config.Checkpoint?.Save(GetValues(), eval?.ToString());
         }
-        else
+        else if (Log.WantIterations)
             Log.Iteration($"chain improved: eval={eval}");
     }
 
