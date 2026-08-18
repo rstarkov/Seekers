@@ -245,6 +245,8 @@ public static class SeekerThreaded
             else if (!s.Params.All(p => p.HasInitial) && !(_config.Checkpoint?.Resume == true && _config.Checkpoint.TryLoadValues() != null))
                 s.RandomizeAll();
             s.Evaluate();
+            if (!s.HasGlobalBest)
+                throw new InvalidOperationException("The initial evaluation is not viable (e.g. NaN); threaded search needs a viable starting point — supply startValues or initial parameter values that evaluate successfully.");
         }
 
         /// <summary>

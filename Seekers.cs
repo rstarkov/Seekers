@@ -37,6 +37,12 @@ public record SeekerConfig<TVector, TEval>
     public TEval WorstEval { get; set; }
     public Func<TEval, TEval, int> Compare { get; set; }
     public IComparer<TEval> Comparer { get; set; }
+    /// <summary>
+    ///     Filters evaluations before they can become the incumbent: a value failing this predicate always ranks as
+    ///     worse and is never committed as best (not even the very first evaluation), and the comparison functions are
+    ///     never invoked with it. When null (the default), NaN is rejected for <c>double</c>/<c>float</c> evaluations
+    ///     and everything is accepted for other TEval types. Set to <c>_ =&gt; true</c> to accept NaN too.</summary>
+    public Func<TEval, bool> IsViable { get; set; }
     /// <summary>Randomness source; defaults to <see cref="Seeker.DefaultRnd"/>. Set for reproducible runs.</summary>
     public Random Random { get; set; }
     public SeekerLog Log { get; set; }
@@ -83,6 +89,7 @@ public static class SeekerConfigExtensions
     public static SeekerConfig<TV, TE> WithRandom<TV, TE>(this SeekerConfig<TV, TE> cfg, Random random) { cfg.Random = random; return cfg; }
     public static SeekerConfig<TV, TE> WithRandom<TV, TE>(this SeekerConfig<TV, TE> cfg, int seed) { cfg.Random = new Random(seed); return cfg; }
     public static SeekerConfig<TV, TE> WithImproved<TV, TE>(this SeekerConfig<TV, TE> cfg, Action<TE, TV> onImproved) { cfg.OnImproved = onImproved; return cfg; }
+    public static SeekerConfig<TV, TE> WithViable<TV, TE>(this SeekerConfig<TV, TE> cfg, Func<TE, bool> isViable) { cfg.IsViable = isViable; return cfg; }
     public static SeekerConfig<TV, TE> WithRenormalize<TV, TE>(this SeekerConfig<TV, TE> cfg, Action<IReadOnlyList<VectorParam>> renormalize) { cfg.Renormalize = renormalize; return cfg; }
     public static SeekerConfig<TV, TE> WithCheckpoint<TV, TE>(this SeekerConfig<TV, TE> cfg, string path) { cfg.Checkpoint = new SeekerCheckpoint(path); return cfg; }
     public static SeekerConfig<TV, TE> WithTraverse<TV, TE>(this SeekerConfig<TV, TE> cfg, TraverseOptions options) { cfg.Traverse = options; return cfg; }

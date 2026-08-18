@@ -62,6 +62,8 @@ custom `Comparison<TEval>`/`IComparer<TEval>` for lexicographic orderings, feasi
 tie-breaks. The comparison is tri-state — exact equality is meaningful and drives plateau handling
 (`TraverseOptions.CanGrowIfEqual`), which is essential for integer-valued or quantized objectives.
 
+- NaN evaluations (for `double`/`float` `TEval`) are never accepted as the incumbent and are never shown to the
+  comparison functions. `config.IsViable` customizes this filter for any `TEval` (or disables it with `_ => true`).
 - Throw `SeekerBreakException` from an evaluation to abandon the search gracefully; the best-so-far is returned.
 - `WithEval((v, best) => …, worstEval)` declares an incumbent-aware evaluation that can abort early once it provably
   cannot beat the best so far (e.g. a tournament that cannot win any more).

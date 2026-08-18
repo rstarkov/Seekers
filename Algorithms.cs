@@ -40,20 +40,25 @@ public static class SeekerAlgorithms
                 s.SetValues(startValues);
             if (haveStart)
             {
-                s.Evaluate();
-                s.Log.Iteration($"initial point: eval={s.BestEval}");
-                climb(s, options, maxSweepsPerClimb);
+                var e = s.Evaluate();
+                s.Log.Iteration($"initial point: eval={e}");
+                if (s.HasBest) // a non-viable start (e.g. NaN) leaves nothing to climb from
+                    climb(s, options, maxSweepsPerClimb);
             }
             for (int r = 0; r < restarts; r++)
             {
                 s.ResetChain();
                 s.RandomizeAll();
-                s.Evaluate();
-                s.Log.Iteration($"restart {r + 1}/{restarts}: eval={s.BestEval}");
+                var e = s.Evaluate();
+                s.Log.Iteration($"restart {r + 1}/{restarts}: eval={e}");
+                if (s.HasBest)
+                    climb(s, options, maxSweepsPerClimb);
+            }
+            if (s.HasGlobalBest)
+            {
+                s.RestoreGlobalBest();
                 climb(s, options, maxSweepsPerClimb);
             }
-            s.RestoreGlobalBest();
-            climb(s, options, maxSweepsPerClimb);
         }
         catch (SeekerBreakException) { }
         config.Checkpoint?.SaveFinal();
@@ -84,15 +89,18 @@ public static class SeekerAlgorithms
             if (!haveStart)
                 s.RandomizeAll();
             s.Evaluate();
-            for (int sweep = 0; sweep < maxSweepsPerClimb; sweep++)
-                if (!s.CoordinateSweep(options))
-                    break;
+            if (s.HasBest) // a non-viable start (e.g. NaN) leaves nothing to sweep from
+                for (int sweep = 0; sweep < maxSweepsPerClimb; sweep++)
+                    if (!s.CoordinateSweep(options))
+                        break;
             for (int r = 0; r < restarts; r++)
             {
                 s.ResetChain();
                 s.RandomizeAll();
-                s.Evaluate();
-                s.Log.Iteration($"restart {r + 1}/{restarts}: eval={s.BestEval}");
+                var e = s.Evaluate();
+                s.Log.Iteration($"restart {r + 1}/{restarts}: eval={e}");
+                if (!s.HasBest)
+                    continue;
                 for (int sweep = 0; sweep < maxSweepsPerClimb; sweep++)
                     if (!s.CoordinateSweep(options))
                         break;

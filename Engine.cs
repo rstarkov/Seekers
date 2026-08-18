@@ -41,6 +41,7 @@ public class Seeker<TVector, TEval>
 
     private readonly VectorContext _ctx = new();
     private readonly Func<TVector, TEval> _evaluate;
+    private readonly Func<TEval, bool> _isViable;
     private double[] _bestRaws;       // chain best
     private double[] _globalRaws;     // global best
 
@@ -63,6 +64,7 @@ public class Seeker<TVector, TEval>
         Random = config.Random ?? Seeker.DefaultRnd;
         Log = config.Log ?? SeekerLog.None;
         _evaluate = evaluateOverride ?? config.Evaluate;
+        _isViable = config.IsViable ?? defaultViable();
         if (config.MakeVector == null)
             throw new InvalidOperationException("SeekerConfig.MakeVector is not set.");
         if (_evaluate == null && config.EvaluateWithBest == null)
@@ -161,10 +163,25 @@ public class Seeker<TVector, TEval>
             ? Config.EvaluateWithBest(vector, HasGlobalBest ? GlobalBestEval : Config.WorstEval)
             : _evaluate(vector);
         EvalCount++;
+        if (_isViable != null && !_isViable(eval))
+            return -1; // never committed, never shown to the comparison functions
         int cmp = HasBest ? Config.CompareUsingGoal(eval, BestEval) : 1;
         if (cmp > 0)
             commitBest(vector, eval);
         return cmp;
+    }
+
+    /// <summary>
+    ///     With no user-supplied viability predicate, NaN evaluations are rejected for double/float TEval — a NaN
+    ///     incumbent would otherwise be possible (the first evaluation commits without comparison, and the default
+    ///     comparer's total order ranks NaN as "smallest", which Minimize inverts into "best").</summary>
+    private static Func<TEval, bool> defaultViable()
+    {
+        if (typeof(TEval) == typeof(double))
+            return (Func<TEval, bool>) (object) (Func<double, bool>) (e => !double.IsNaN(e));
+        if (typeof(TEval) == typeof(float))
+            return (Func<TEval, bool>) (object) (Func<float, bool>) (e => !float.IsNaN(e));
+        return null;
     }
 
     private void commitBest(TVector vector, TEval eval)
@@ -196,6 +213,8 @@ public class Seeker<TVector, TEval>
     ///     Also updates the global best if better.</summary>
     public void SeedChain(TEval eval)
     {
+        if (_isViable != null && !_isViable(eval))
+            throw new ArgumentException("Cannot seed with a non-viable evaluation (see SeekerConfig.IsViable).");
         var vector = MakeVector();
         HasBest = true;
         BestEval = eval;
@@ -379,7 +398,8 @@ public class Seeker<TVector, TEval>
     private void ensureBest()
     {
         if (!HasBest)
-            throw new InvalidOperationException("No evaluated incumbent: call Evaluate() (or SeedChain) before traversing.");
+            throw new InvalidOperationException("No evaluated incumbent: call Evaluate() (or SeedChain) before traversing. "
+                + "Note that non-viable evaluations (e.g. NaN) never become the incumbent; check HasBest after evaluating.");
     }
 
     private static void negate(double[] vector)
