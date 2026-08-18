@@ -1,7 +1,4 @@
 <Solution>
-  <Folder Name="/Src/" />
-  <Folder Name="/Tests/">
-    <Project Path="Tests/Seeker.Tests.csproj" />
-  </Folder>
   <Project Path="Src/Seekers.csproj" />
+  <Project Path="Tests/Seekers.Tests.csproj" />
 </Solution>
