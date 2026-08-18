@@ -1,17 +1,24 @@
 using System.Diagnostics;
 using System.Reflection;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Seekers.Tests;
 
 /// <summary>
 ///     Information-style performance tests: they measure per-evaluation library overhead and report it against
 ///     reference numbers, but never fail — machines differ, CI is noisy, and Debug builds are legitimately slower.
-///     Watch the per-test output for the numbers and for regression warnings. Filter with
-///     <c>dotnet test --filter Category!=Performance</c> to skip them. Reference numbers were captured by running
-///     these tests on the development machine with everything built in Release; other test classes running in parallel add noise, so
-///     treat single-run deviations with suspicion and re-run before concluding anything.</summary>
+///     Filter with <c>dotnet test --filter Category!=Performance</c> to skip them.
+///     <para>
+///         The canonical way to run these is the test executable itself (xUnit v3 test projects are runnable), which
+///         measures in-process without a test host and prints results live to the console:</para>
+///     <code>
+///         dotnet build Tests -c Release
+///         Builds\Release\Seekers.Tests.exe -class "Seekers.Tests.PerformanceInfoTests"
+///     </code>
+///     <para>
+///         Reference numbers were captured that way (Release, development machine). Under <c>dotnet test</c> the
+///         numbers land in the per-test output instead and other test classes running in parallel add noise — treat
+///         single-run deviations with suspicion and re-run standalone before concluding anything.</para></summary>
 [Trait("Category", "Performance")]
 public class PerformanceInfoTests
 {
@@ -25,14 +32,29 @@ public class PerformanceInfoTests
     private static bool librariesUnoptimized =>
         typeof(Seeker).Assembly.GetCustomAttribute<DebuggableAttribute>()?.IsJITOptimizerDisabled == true;
 
+    /// <summary>True when running via the test executable itself rather than under a test host (dotnet test / IDE).</summary>
+    private static bool runningStandalone =>
+        string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath),
+            typeof(PerformanceInfoTests).Assembly.GetName().Name, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Writes to the per-test output, and also live to the console when running as the standalone exe.</summary>
+    private void emit(string line)
+    {
+        _out.WriteLine(line);
+        if (runningStandalone)
+            Console.WriteLine(line);
+    }
+
     private void report(string what, double nsPerEval, double referenceNs)
     {
-        _out.WriteLine($"{what}: {nsPerEval:0} ns/eval ({1000.0 / nsPerEval:0.00}M evals/sec)");
-        _out.WriteLine($"  reference (Release, dev machine): {referenceNs:0} ns/eval — this run is {nsPerEval / referenceNs:0.0}x the reference");
+        emit($"{what}: {nsPerEval:0} ns/eval ({1000.0 / nsPerEval:0.00}M evals/sec)");
+        emit($"  reference (standalone exe, Release, dev machine): {referenceNs:0} ns/eval — this run is {nsPerEval / referenceNs:0.0}x the reference");
         if (librariesUnoptimized)
-            _out.WriteLine("  note: Seekers was built without JIT optimization (Debug) — several times slower than the reference is expected");
+            emit("  note: Seekers was built without JIT optimization (Debug) — several times slower than the reference is expected");
+        else if (!runningStandalone)
+            emit("  note: running under a test host — for the cleanest numbers run the test exe directly (see class doc)");
         else if (nsPerEval > referenceNs * 3)
-            _out.WriteLine("  WARNING: substantially slower than the reference — possible regression (informational only, not failing the run)");
+            emit("  WARNING: substantially slower than the reference — possible regression (informational only, not failing the run)");
     }
 
     private static SeekerConfig<(double Nl, double Ns, double Na, double sl, double sp), (double profit, double sl, double sp)> macdShapedConfig(int seed) =>
@@ -59,7 +81,7 @@ public class PerformanceInfoTests
         var sw = Stopwatch.StartNew();
         for (int i = 0; i < N; i++) { s.RandomizeAll(); s.Evaluate(); }
         sw.Stop();
-        report("random+eval (typed 5-param pipeline)", sw.Elapsed.TotalMilliseconds * 1e6 / N, referenceNs: 230);
+        report("random+eval (typed 5-param pipeline)", sw.Elapsed.TotalMilliseconds * 1e6 / N, referenceNs: 215);
     }
 
     [Fact]
@@ -77,7 +99,7 @@ public class PerformanceInfoTests
             s.OrthogonalTraverse();
         sw.Stop();
         var evals = s.EvalCount - baseline;
-        report("hill-climb path (OrthogonalTraverse)", sw.Elapsed.TotalMilliseconds * 1e6 / evals, referenceNs: 90);
+        report("hill-climb path (OrthogonalTraverse)", sw.Elapsed.TotalMilliseconds * 1e6 / evals, referenceNs: 82);
     }
 
     [Fact]
@@ -90,7 +112,7 @@ public class PerformanceInfoTests
         var res = stop();
         // workers run at lowest priority, so a busy machine depresses this figure more than the others
         var nsPerEvalPerWorker = 800.0 * 1e6 * threads / res.EvalCount;
-        report($"threaded traverse ({threads} workers, per-worker figure)", nsPerEvalPerWorker, referenceNs: 280);
+        report($"threaded traverse ({threads} workers, per-worker figure)", nsPerEvalPerWorker, referenceNs: 490);
     }
 
     [Fact]
@@ -113,9 +135,9 @@ public class PerformanceInfoTests
         var off = measure(SeekerLog.None);
         int lines = 0;
         var quiet = measure(SeekerLog.To(_ => lines++, SeekerLogLevel.Steps)); // fully enabled sink; random+eval emits no step lines and improvements dry up after warmup
-        _out.WriteLine($"logging off: {off:0} ns/eval; logging enabled but quiet: {quiet:0} ns/eval ({quiet / off:0.00}x)");
-        _out.WriteLine($"  lines actually emitted during measurement window: about {lines} (improvements only)");
+        emit($"logging off: {off:0} ns/eval; logging enabled but quiet: {quiet:0} ns/eval ({quiet / off:0.00}x)");
+        emit($"  lines actually emitted during measurement window: about {lines} (improvements only)");
         if (quiet > off * 1.25)
-            _out.WriteLine("  WARNING: enabled-but-quiet logging cost more than 25% — the zero-cost-guard claim may have regressed (informational only)");
+            emit("  WARNING: enabled-but-quiet logging cost more than 25% — the zero-cost-guard claim may have regressed (informational only)");
     }
 }
