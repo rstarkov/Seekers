@@ -168,8 +168,10 @@ The comparison sees only `TEval`, so carry whatever the tie-break needs into the
 A failed or infeasible evaluation can return a "worse than anything" value; the search simply never accepts it.
 Log the failure yourself — the vector is in scope.
 
-NaN needs no sentinel: for `double`/`float` evaluations it is rejected automatically (never committed as best, never
-passed to your comparison). For other `TEval` types, declare viability explicitly — the same guarantees then apply:
+NaN and null need no sentinel: NaN is rejected automatically for `double`/`float` evaluations (plain or nullable),
+and null for any reference-type or nullable `TEval` — never committed as best, never passed to your comparison, so
+an eval can simply `return null` for "no result". For richer viability rules, declare a predicate — the same
+guarantees then apply:
 
 ```csharp
 .WithViable(e => !double.IsNaN(e.score) && e.converged)

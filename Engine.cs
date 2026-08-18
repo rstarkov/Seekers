@@ -174,13 +174,20 @@ public class Seeker<TVector, TEval>
     /// <summary>
     ///     With no user-supplied viability predicate, NaN evaluations are rejected for double/float TEval — a NaN
     ///     incumbent would otherwise be possible (the first evaluation commits without comparison, and the default
-    ///     comparer's total order ranks NaN as "smallest", which Minimize inverts into "best").</summary>
+    ///     comparer's total order ranks NaN as "smallest", which Minimize inverts into "best") — and null is rejected
+    ///     for every TEval that can hold it (reference types and nullable value types).</summary>
     private static Func<TEval, bool> defaultViable()
     {
         if (typeof(TEval) == typeof(double))
             return (Func<TEval, bool>) (object) (Func<double, bool>) (e => !double.IsNaN(e));
         if (typeof(TEval) == typeof(float))
             return (Func<TEval, bool>) (object) (Func<float, bool>) (e => !float.IsNaN(e));
+        if (typeof(TEval) == typeof(double?))
+            return (Func<TEval, bool>) (object) (Func<double?, bool>) (e => e.HasValue && !double.IsNaN(e.Value));
+        if (typeof(TEval) == typeof(float?))
+            return (Func<TEval, bool>) (object) (Func<float?, bool>) (e => e.HasValue && !float.IsNaN(e.Value));
+        if (default(TEval) is null) // reference types and Nullable<T>
+            return e => e is not null;
         return null;
     }
 

@@ -40,8 +40,9 @@ public record SeekerConfig<TVector, TEval>
     /// <summary>
     ///     Filters evaluations before they can become the incumbent: a value failing this predicate always ranks as
     ///     worse and is never committed as best (not even the very first evaluation), and the comparison functions are
-    ///     never invoked with it. When null (the default), NaN is rejected for <c>double</c>/<c>float</c> evaluations
-    ///     and everything is accepted for other TEval types. Set to <c>_ =&gt; true</c> to accept NaN too.</summary>
+    ///     never invoked with it. When null (the default), NaN is rejected for <c>double</c>/<c>float</c> (plain or
+    ///     nullable) evaluations, and null is rejected for every TEval that can hold it (reference types and nullable
+    ///     value types); other TEval types accept everything. Set to <c>_ =&gt; true</c> to accept all values.</summary>
     public Func<TEval, bool> IsViable { get; set; }
     /// <summary>Randomness source; defaults to <see cref="Seeker.DefaultRnd"/>. Set for reproducible runs.</summary>
     public Random Random { get; set; }
